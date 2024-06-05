@@ -22,6 +22,9 @@ export const todoCreateSchema = Joi.object({
         'date.base': 'Due Date should be a valid date',
         'any.required': 'Due Date is a required field',
     }),
+    reminderTime: Joi.date().optional().messages({
+        'date.base': 'Due Date should be a valid date'
+    })
 });
 
 
@@ -48,4 +51,7 @@ export const todoUpdateSchema = Joi.object({
         'date.base': 'Due Date should be a valid date',
         'any.required': 'Due Date is a required field',
     }),
+    reminderTime: Joi.date().optional().messages({
+        'date.base': 'Due Date should be a valid date'
+    })
 });

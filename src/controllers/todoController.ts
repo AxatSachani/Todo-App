@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Todo from '../models/todo';
 import { todoCreateSchema, todoUpdateSchema } from '../schema/todo';
+import { cancelEmailReminder, scheduleEmailReminder } from '../utils/emailService';
 
 export const getTodos = async (req: Request, res: Response) => {
     const msg: string = "Todos List"
@@ -22,12 +23,16 @@ export const getTodos = async (req: Request, res: Response) => {
 export const createTodo = async (req: Request, res: Response) => {
     const msg: string = "Todo Created"
     try {
-        const { userID } = req.body.user
-        const { title, description, completed, dueDate } = req.body
-        const { error } = todoCreateSchema.validate({ userID, title, description, completed, dueDate })
+        const { userID, emailID } = req.body.user
+        const { title, description, completed, dueDate, reminderTime } = req.body
+        const { error } = todoCreateSchema.validate({ userID, title, description, completed, dueDate, reminderTime })
         if (error) throw new Error(error.message)
-        const newTodo = new Todo({ title, description, completed, dueDate, userID });
+        const newTodo = new Todo({ title, description, completed, dueDate, userID, reminderTime, reminderScheduled: !!reminderTime });
         await newTodo.save();
+        if (reminderTime) {
+            scheduleEmailReminder(emailID, newTodo);
+        }
+
         res.status(201).send({ code: 201, success: true, message: msg });
     } catch (error: any) {
         res.status(400).send({ code: 400, success: false, message: error.message });
@@ -37,11 +42,11 @@ export const createTodo = async (req: Request, res: Response) => {
 export const updateTodo = async (req: Request, res: Response) => {
     const msg: string = "Todo Updated"
     try {
-        const { userID } = req.body.user
+        const { userID, emailID } = req.body.user
         const { id } = req.params
-        const { title, description, dueDate } = req.body
+        const { title, description, dueDate, reminderTime } = req.body
 
-        const { error } = todoUpdateSchema.validate({ userID, id, title, description, dueDate })
+        const { error } = todoUpdateSchema.validate({ userID, id, title, description, dueDate, reminderTime })
         if (error) throw new Error(error.message)
 
         const date = new Date().toISOString().slice(0, 10)
@@ -52,9 +57,22 @@ export const updateTodo = async (req: Request, res: Response) => {
         const todo = await Todo.findOne({ _id: id, userID });
         if (!todo) throw new Error('Todo Not Found!')
         if (todo.createdAt < today || todo.createdAt > tomorrow) throw new Error('You can update only todays Todos!')
+
         todo.title = title
         todo.description = description
         todo.dueDate = dueDate
+
+        if (reminderTime && reminderTime !== todo.reminderTime) {
+            cancelEmailReminder(todo.id);
+            todo.reminderTime = reminderTime;
+            todo.reminderScheduled = true;
+            scheduleEmailReminder(emailID, todo);
+        } else if (todo.reminderScheduled && !reminderTime) {
+            cancelEmailReminder(todo.id);
+            todo.reminderTime = undefined;
+            todo.reminderScheduled = false;
+        }
+
         await todo.save()
         res.status(200).send({ code: 200, success: true, message: msg });
     } catch (error: any) {
@@ -75,6 +93,11 @@ export const deleteTodo = async (req: Request, res: Response) => {
         const todo = await Todo.findOne({ _id: id, userID });
         if (!todo) throw new Error('Todo Not Found!')
         if (todo.createdAt < today || todo.createdAt > tomorrow) throw new Error('You can delete only todays Todos!')
+
+        if (todo.reminderScheduled) {
+            cancelEmailReminder(todo.id);
+        }
+
         await todo.deleteOne()
         res.status(200).send({ code: 200, success: true, message: msg });
     } catch (error: any) {
@@ -90,6 +113,9 @@ export const markComplateTodo = async (req: Request, res: Response) => {
         const { id } = req.params
         const todo = await Todo.findOneAndUpdate({ _id: id, userID }, { $set: { completed: true } });
         if (!todo) throw new Error('Todo Not Found!')
+        if (todo.reminderScheduled) {
+            cancelEmailReminder(todo.id);
+        }
         res.status(200).send({ code: 200, success: true, message: msg });
     } catch (error: any) {
         res.status(400).send({ code: 400, success: false, message: error.message });
@@ -99,11 +125,14 @@ export const markComplateTodo = async (req: Request, res: Response) => {
 export const markUnComplateTodo = async (req: Request, res: Response) => {
     const msg: string = "Todo Mark As UnComplated"
     try {
-        const { userID } = req.body.user
+        const { userID, emailID } = req.body.user
         const { id } = req.params
 
         const todo = await Todo.findOneAndUpdate({ _id: id, userID }, { $set: { completed: false } });
         if (!todo) throw new Error('Todo Not Found!')
+        if (todo.reminderScheduled) {
+            scheduleEmailReminder(emailID, todo);
+        }
         res.status(200).send({ code: 200, success: true, message: msg });
     } catch (error: any) {
         res.status(400).send({ code: 400, success: false, message: error.message });

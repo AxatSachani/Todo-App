@@ -11,8 +11,8 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
             code = 401
             throw new Error('Access denied. No token provided.')
         }
-        const decoded = jwt.verify(token, JWT_SECRET) as { userID: string };
-        req.body.user = { userID: decoded.userID };
+        const decoded = jwt.verify(token, JWT_SECRET) as { userID: string, emailID: string };
+        req.body.user = { emailID: decoded.emailID, userID: decoded.userID };
         next();
     } catch (error: any) {
         res.status(code).send({ code: code, success: false, message: error.message })
