@@ -36,7 +36,7 @@ const jobs: { [key: string]: Job } = {};
 
 export const scheduleEmailReminder = (email: string, todo: ITodo) => {
   if (todo.reminderTime && !todo.completed) {
-    const job = scheduleJob(todo.reminderTime, () => {
+    const job = scheduleJob({ start: todo.reminderTime, tz: "Asia/Kolkata" }, () => {
       const subject = `Reminder: ${todo.title}`;
       const text = `You have a task due: ${todo.title}\nDescription: ${todo.description}\nDue Date: ${moment(todo.dueDate).format('D/M/YYYY h:mm A')}`;
       sendEmail(email, subject, text);
