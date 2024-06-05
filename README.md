@@ -26,6 +26,8 @@ A Todo App API built with Node.js and TypeScript that allows registered users to
    - MONGO_URI=mongodb://localhost:27017/todoapp
    - JWT_SECRET=your_jwt_secret
    - POSRT=5000
+   - MAILID = youmail@gmail.com
+   - MAILPASS = app password (please refer https://support.google.com/accounts/answer/185833?hl=en) 
    
 4. Create a build:
     ```npm run build```
